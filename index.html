@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>📱 Clasificador IA - Móvil</title>
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- PWA Meta tags -->
+    <meta name="theme-color" content="#667eea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="manifest.json" />
+  </head>
+  <body>
+    <div class="mobile-container">
+      <header class="mobile-header">
+        <h1>🤖 Clasificador IA</h1>
+        <div class="status-indicator" id="status">🔄 Iniciando...</div>
+      </header>
+
+      <main class="mobile-main">
+        <!-- Cámara -->
+        <div class="camera-container">
+          <video id="video" autoplay playsinline muted></video>
+          <div class="camera-overlay">
+            <div class="viewfinder"></div>
+            <div class="camera-info">Apunta a un objeto</div>
+          </div>
+        </div>
+
+        <!-- Botón de captura -->
+        <div class="capture-section">
+          <button id="capture" class="capture-btn" disabled>
+            <span class="btn-icon">📸</span>
+            <span class="btn-text">Clasificar</span>
+          </button>
+          <button id="switch-camera" class="switch-btn">🔄</button>
+        </div>
+
+        <!-- Resultado -->
+        <div class="result-section" id="result-section">
+          <div class="result-card">
+            <div class="result-icon">🎯</div>
+            <div class="result-text" id="resultado">
+              Toca el botón para clasificar
+            </div>
+            <div class="confidence-container">
+              <div class="confidence-bar">
+                <div class="confidence-fill" id="confidence"></div>
+              </div>
+              <span class="confidence-text" id="confidence-text">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-overlay" id="loading">
+          <div class="loading-spinner"></div>
+          <p>Analizando...</p>
+        </div>
+      </main>
+
+      <!-- Canvas oculto -->
+      <canvas
+        id="canvas"
+        width="224"
+        height="224"
+        style="display: none"
+      ></canvas>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.0.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
