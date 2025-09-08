@@ -1,156 +1,90 @@
-// Variables globales
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const botonCapturar = document.getElementById("capture");
-const botonCambiarCamara = document.getElementById("switch-camera");
-const resultado = document.getElementById("resultado");
-const status = document.getElementById("status");
-const loading = document.getElementById("loading");
-const confidence = document.getElementById("confidence");
-const confidenceText = document.getElementById("confidence-text");
+let modeloMobilenet, modeloCocoSsd;
 
-let modelo;
-let stream;
-let camaraActual = "environment"; // 'user' para cámara frontal, 'environment' para trasera
+const uploadImage = document.getElementById("upload-image");
+const imgPreview = document.getElementById("img-preview");
+const btnAnalizar = document.getElementById("btn-analizar");
+const ulClasificacion = document.getElementById("clasificacion");
+const ulDeteccion = document.getElementById("deteccion");
+const resultadosSection = document.getElementById("resultados");
 
-// Configuración inicial de cámara
-function getConfigCamara() {
-  return {
-    video: {
-      width: { ideal: 640 },
-      height: { ideal: 480 },
-      facingMode: camaraActual,
-    },
-    audio: false,
-  };
-}
+const comentario = document.getElementById("comentario");
+// const btnSentimiento = document.getElementById("btn-sentimiento"); // Eliminado
+const resultadoSentimiento = document.getElementById("resultado-sentimiento");
 
-// Mostrar estado en la UI
-function mostrarEstado(mensaje, tipo = "loading") {
-  status.textContent = mensaje;
-  status.className = `status-indicator ${tipo}`;
-}
-
-// Vibrar si está disponible
-function vibrar(duracion = 50) {
-  if (navigator.vibrate) {
-    navigator.vibrate(duracion);
-  }
-}
-
-// Iniciar cámara con la configuración actual
-async function iniciarCamara() {
+async function cargarModelos() {
+  btnAnalizar.disabled = true;
+  // btnSentimiento.disabled = true; // Eliminado
   try {
-    mostrarEstado("🔄 Iniciando cámara...", "loading");
-
-    // Detener stream anterior si existe
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-
-    // Solicitar acceso a la cámara
-    stream = await navigator.mediaDevices.getUserMedia(getConfigCamara());
-    video.srcObject = stream;
-
-    // Esperar a que el video esté listo
-    return new Promise((resolve) => {
-      video.onloadedmetadata = () => {
-        video.play();
-        mostrarEstado("📹 Cámara lista", "ready");
-        resolve();
-      };
-    });
+    modeloMobilenet = await mobilenet.load();
+    modeloCocoSsd = await cocoSsd.load();
+    // btnSentimiento.disabled = false; // Eliminado
   } catch (error) {
-    console.error("Error al acceder a la cámara:", error);
-    mostrarEstado("❌ Error de cámara", "error");
-
-    if (error.name === "NotAllowedError") {
-      alert(
-        "❌ Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración del navegador."
-      );
-    } else if (error.name === "NotFoundError") {
-      alert("❌ No se encontró cámara en el dispositivo.");
-    } else {
-      alert(
-        "❌ Error al acceder a la cámara. Asegúrate de estar usando HTTPS."
-      );
-    }
+    alert("Error cargando modelos. Revisa tu conexión.");
+    console.error(error);
   }
 }
 
-// Cambiar entre cámara frontal y trasera
-async function cambiarCamara() {
-  vibrar();
-  camaraActual = camaraActual === "environment" ? "user" : "environment";
-  await iniciarCamara();
-}
-
-// Cargar modelo MobileNet
-async function cargarModelo() {
-  try {
-    mostrarEstado("🔄 Cargando modelo de IA...", "loading");
-    modelo = await mobilenet.load({ version: 2, alpha: 1.0 });
-    mostrarEstado("✅ Modelo cargado. Listo para clasificar.", "ready");
-    botonCapturar.disabled = false;
-    botonCapturar.classList.add("pulse");
-  } catch (error) {
-    console.error("Error al cargar modelo:", error);
-    mostrarEstado("❌ Error al cargar modelo", "error");
-    alert("Error al cargar el modelo de IA. Revisa tu conexión a internet.");
+uploadImage.addEventListener("change", () => {
+  const file = uploadImage.files[0];
+  if (!file) {
+    imgPreview.style.display = "none";
+    btnAnalizar.disabled = true;
+    resultadosSection.style.display = "none";
+    return;
   }
-}
-
-// Clasificar imagen capturada
-async function clasificarImagen() {
-  try {
-    loading.style.display = "flex";
-    botonCapturar.disabled = true;
-    botonCapturar.classList.remove("pulse");
-
-    // Capturar frame del video en canvas
-    ctx.drawImage(video, 0, 0, 224, 224);
-
-    // Obtener tensor de imagen
-    const imgTensor = tf.browser.fromPixels(canvas);
-
-    // Clasificar con MobileNet
-    const predicciones = await modelo.classify(imgTensor);
-
-    if (predicciones.length > 0) {
-      const mejorPrediccion = predicciones[0];
-      const nombre = mejorPrediccion.className;
-      const probabilidad = mejorPrediccion.probability;
-
-      resultado.innerHTML = `🎯 <strong>${nombre}</strong>`;
-      confidence.style.width = `${(probabilidad * 100).toFixed(1)}%`;
-      confidenceText.textContent = `${(probabilidad * 100).toFixed(1)}%`;
-    } else {
-      resultado.textContent = "No se pudo clasificar la imagen.";
-      confidence.style.width = "0%";
-      confidenceText.textContent = "0%";
-    }
-
-    imgTensor.dispose();
-  } catch (error) {
-    console.error("Error en clasificación:", error);
-    resultado.textContent = "❌ Error al procesar la imagen";
-    confidence.style.width = "0%";
-    confidenceText.textContent = "0%";
-  } finally {
-    loading.style.display = "none";
-    botonCapturar.disabled = false;
-    botonCapturar.classList.add("pulse");
-  }
-}
-
-// Eventos
-botonCapturar.addEventListener("click", clasificarImagen);
-botonCambiarCamara.addEventListener("click", cambiarCamara);
-
-// Inicialización al cargar DOM
-document.addEventListener("DOMContentLoaded", async () => {
-  botonCapturar.disabled = true;
-  await iniciarCamara();
-  await cargarModelo();
+  const url = URL.createObjectURL(file);
+  imgPreview.src = url;
+  imgPreview.style.display = "block";
+  btnAnalizar.disabled = false;
+  resultadosSection.style.display = "none";
+  ulClasificacion.innerHTML = "";
+  ulDeteccion.innerHTML = "";
+  resultadoSentimiento.textContent = "";
 });
+
+btnAnalizar.addEventListener("click", async () => {
+  if (!imgPreview.src) return;
+
+  btnAnalizar.disabled = true;
+  ulClasificacion.innerHTML = "<li>Cargando clasificación...</li>";
+  ulDeteccion.innerHTML = "<li>Cargando detección...</li>";
+  resultadosSection.style.display = "block";
+
+  try {
+    // Clasificación MobileNet
+    const resultadosClasificacion = await modeloMobilenet.classify(imgPreview);
+    ulClasificacion.innerHTML = "";
+    resultadosClasificacion.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = `${item.className} - ${(item.probability * 100).toFixed(
+        2
+      )}%`;
+      ulClasificacion.appendChild(li);
+    });
+
+    // Detección COCO-SSD
+    const resultadosDeteccion = await modeloCocoSsd.detect(imgPreview);
+    ulDeteccion.innerHTML = "";
+    if (resultadosDeteccion.length === 0) {
+      ulDeteccion.innerHTML = "<li>No se detectaron objetos.</li>";
+    } else {
+      resultadosDeteccion.forEach((objeto) => {
+        const li = document.createElement("li");
+        li.textContent = `${objeto.class} - ${(objeto.score * 100).toFixed(
+          2
+        )}%`;
+        ulDeteccion.appendChild(li);
+      });
+    }
+  } catch (error) {
+    alert("Error durante el análisis. Intenta de nuevo.");
+    console.error(error);
+  } finally {
+    btnAnalizar.disabled = false;
+  }
+});
+
+// Eliminado el listener btnSentimiento
+
+// Cargar modelos al iniciar
+cargarModelos();
